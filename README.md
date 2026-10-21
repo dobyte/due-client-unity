@@ -33,6 +33,8 @@ due是一款基于Go语言开发的轻量级、高性能分布式游戏服务器
 将 `Runtime` 目录下的所有文件复制到 Unity 项目的 `Assets` 目录下即可使用。
 其中包含 Assembly Definition（`Due.asmdef`），会自动生成独立的 `Due` 程序集。
 
+也可以从 GitHub Releases 下载最新的 `due-client-unity-<version>.zip`，解压到 `Assets` 目录即可。
+
 仓库中的 `Tests` 目录为单元测试（覆盖安全模块与打包器），需连同 `Runtime` 一起放入 `Assets`，然后通过 Unity 的 Test Runner（Window > General > Test Runner）运行。
 
 ### 5.使用
@@ -342,6 +344,27 @@ client.OnDisconnect(c =>
 
 * WebSocket 需将 API Compatibility Level 设置为 `.NET Standard 2.1` 或 `.NET Framework 4.x`。
 * WebGL 不支持 `System.Net.WebSockets`，需基于浏览器原生 WebSocket 实现 `INetwork`；同时需验证 `ECDsa` 等加密 API 在该平台是否可用。
+
+### 10.版本发布
+
+仓库通过 GitHub Actions 自动发布版本，工作流文件为 [release.yml](.github/workflows/release.yml)。
+
+发布新版本只需推送 `v*` 标签：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+工作流会自动执行：
+
+1. 校验标签格式与包结构；
+2. 将 `Runtime`、`README.md`、`LICENSE` 打包为 `due-client-unity-<tag>.zip`；
+3. 创建 GitHub Release、生成发布说明并上传压缩包；同名 Release 已存在时覆盖上传产物。
+
+也可以在 GitHub Actions 页面手动触发 `Release` 工作流并填写标签（标签不存在时会基于当前提交创建）。
+
+发布产物解压到 Unity 工程的 `Assets` 目录即可直接使用。
 
 ## License
 
