@@ -161,7 +161,7 @@ Packer packer = new Packer();
 SecurityOptions security = new SecurityOptions
 {
     // 服务端公钥：可以是 PEM 文件路径，也可以是 PEM 内容
-    Verifier = ServerVerifier.Ecdsa("keys/gate.pub.pem"),
+    Verifier = Verifier.Ecdsa("keys/gate.pub.pem"),
     // 握手超时时间（毫秒），默认为 5000
     HandshakeTimeout = 5000,
 };
@@ -182,7 +182,7 @@ client.Connect("ws://127.0.0.1:3553");
 > * 内置 AEAD 套件为 AES-256-GCM（套件编号 1，纯托管实现，不依赖平台自带的 `AesGcm`）；客户端默认只提供该套件，需要与服务端启用的套件有交集。
 > * 只有握手成功后才会触发 `OnConnect`；握手完成前调用 `Send` 会返回 `false`。心跳帧保持明文，不参与会话加密。
 > * 每条连接都会重新握手，重连无需额外处理；握手失败或超时会自动断开连接。
-> * 服务端使用 RSA 签名时，改用 `ServerVerifier.Rsa("keys/gate.pub.pem")`（默认 PSS 填充，如需 PKCS#1 v1.5 传入 `pss: false`）。
+> * 服务端使用 RSA 签名时，改用 `Verifier.Rsa("keys/gate.pub.pem")`（默认 PSS 填充，如需 PKCS#1 v1.5 传入 `pss: false`）。
 > * 如需自定义验签逻辑（例如使用 HMAC 测试签名），可直接传入 `HandshakeVerifier` 委托；如需扩展 AEAD 算法，可实现 `IAeadSuite` 并通过 `SecurityOptions.Suites` 注入。
 > * 签名算法默认 SHA-256，需与服务端 `etc.crypto.ecc.signer.hash` 配置一致；ECDSA 签名的分隔符默认为空格，与服务端 `etc.crypto.ecc.signer.delimiter` 配置一致。
 
@@ -229,7 +229,7 @@ public class NetworkManager : MonoBehaviour
         SecurityOptions security = null;
         // security = new SecurityOptions
         // {
-        //     Verifier = ServerVerifier.Ecdsa("keys/gate.pub.pem"),
+        //     Verifier = Verifier.Ecdsa("keys/gate.pub.pem"),
         // };
 
         client = new Client(new Tcp(packer), packer, security);
@@ -262,9 +262,9 @@ public class NetworkManager : MonoBehaviour
 | `SecurityOptions.Verifier` | `[crypto.ecc.signer] publicKey` / `[crypto.rsa.signer] publicKey` | 客户端使用网关公钥验签 |
 | `SecurityOptions.Suites` | `gate.WithSessionSecurity(signer, suites...)` | 需与网关启用的套件有交集，客户端默认 AES-256-GCM |
 | `SecurityOptions.HandshakeTimeout` | `gate.WithSessionSecurityHandshakeTimeout(...)` | 默认 5000 毫秒 |
-| `ServerVerifier.Ecdsa` 的 `hash` | `[crypto.ecc.signer] hash` | 默认 `SHA256` |
-| `ServerVerifier.Ecdsa` 的 `delimiter` | `[crypto.ecc.signer] delimiter` | 默认空格 |
-| `ServerVerifier.Rsa` 的 `pss` | `[crypto.rsa.signer] padding` | `PSS` 对应 `pss: true`，`PKCS` 对应 `pss: false` |
+| `Verifier.Ecdsa` 的 `hash` | `[crypto.ecc.signer] hash` | 默认 `SHA256` |
+| `Verifier.Ecdsa` 的 `delimiter` | `[crypto.ecc.signer] delimiter` | 默认空格 |
+| `Verifier.Rsa` 的 `pss` | `[crypto.rsa.signer] padding` | `PSS` 对应 `pss: true`，`PKCS` 对应 `pss: false` |
 
 > 服务端开启会话安全后，节点侧不要再配置静态 `encryptor`，业务 payload 的加密由网关注入的会话密钥负责，避免二次加密。
 

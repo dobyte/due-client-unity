@@ -11,7 +11,7 @@ using System.Text;
 public delegate bool HandshakeVerifier(byte[] data, byte[] signature);
 
 // 内置的服务端公钥验证器，支持 due 的 ecc、rsa 签名实现
-public static class ServerVerifier
+public static class Verifier
 {
     // id-ecPublicKey
     private static readonly byte[] OID_EC_PUBLIC_KEY = { 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01 };

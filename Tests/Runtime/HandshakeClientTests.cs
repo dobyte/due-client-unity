@@ -16,7 +16,7 @@ public class HandshakeClientTests
     {
         using (ECDsa signer = ECDsa.Create(ECCurve.NamedCurves.nistP256))
         {
-            HandshakeClient client = new HandshakeClient(ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
+            HandshakeClient client = new HandshakeClient(Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
             TestHandshakeServer server = new TestHandshakeServer(signer);
             byte[] hello = client.Hello();
             byte[] serverHello = server.Accept(hello);
@@ -52,7 +52,7 @@ public class HandshakeClientTests
     {
         using (ECDsa signer = ECDsa.Create(ECCurve.NamedCurves.nistP256))
         {
-            HandshakeClient client = new HandshakeClient(ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
+            HandshakeClient client = new HandshakeClient(Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
             TestHandshakeServer server = new TestHandshakeServer(signer);
             byte[] serverHello = server.Accept(client.Hello());
 
@@ -69,7 +69,7 @@ public class HandshakeClientTests
     {
         using (ECDsa signer = ECDsa.Create(ECCurve.NamedCurves.nistP256))
         {
-            HandshakeClient client = new HandshakeClient(ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
+            HandshakeClient client = new HandshakeClient(Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
             TestHandshakeServer server = new TestHandshakeServer(signer);
             byte[] serverHello = server.Accept(client.Hello());
 
@@ -86,7 +86,7 @@ public class HandshakeClientTests
         using (ECDsa signer = ECDsa.Create(ECCurve.NamedCurves.nistP256))
         using (ECDsa other = ECDsa.Create(ECCurve.NamedCurves.nistP256))
         {
-            HandshakeClient client = new HandshakeClient(ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(other)));
+            HandshakeClient client = new HandshakeClient(Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(other)));
             TestHandshakeServer server = new TestHandshakeServer(signer);
             byte[] serverHello = server.Accept(client.Hello());
 
@@ -100,7 +100,7 @@ public class HandshakeClientTests
     {
         using (ECDsa signer = ECDsa.Create(ECCurve.NamedCurves.nistP256))
         {
-            HandshakeClient client = new HandshakeClient(ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
+            HandshakeClient client = new HandshakeClient(Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
             byte[] frame = client.Hello();
 
             frame[1] = 3;
@@ -115,7 +115,7 @@ public class HandshakeClientTests
     {
         using (ECDsa signer = ECDsa.Create(ECCurve.NamedCurves.nistP256))
         {
-            HandshakeClient client = new HandshakeClient(ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
+            HandshakeClient client = new HandshakeClient(Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(signer)));
 
             Assert.Throws<InvalidOperationException>(() => client.Handle(new byte[4], out byte[] finished));
 

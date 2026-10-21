@@ -24,7 +24,7 @@ public class DueClientExample : MonoBehaviour
         // 会话安全（可选）：服务端启用 security 时，需提供服务端公钥用于验签
         // SecurityOptions security = new SecurityOptions
         // {
-        //     Verifier = ServerVerifier.Ecdsa("keys/gate.pub.pem"),
+        //     Verifier = Verifier.Ecdsa("keys/gate.pub.pem"),
         // };
         // client = new Client(new Ws(packer), packer, security);
 

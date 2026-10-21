@@ -22,7 +22,7 @@ public class VerifierTests
             byte[] signature = TestUtil.DueEcdsaSignature(
                 TestUtil.NormalizeEcdsaSignature(ecdsa.SignHash(digest), fieldSize),
                 fieldSize);
-            HandshakeVerifier verifier = ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(ecdsa));
+            HandshakeVerifier verifier = Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(ecdsa));
 
             Assert.IsTrue(verifier(data, signature));
             Assert.IsFalse(verifier(Encoding.UTF8.GetBytes("tampered"), signature));
@@ -42,7 +42,7 @@ public class VerifierTests
                 TestUtil.NormalizeEcdsaSignature(ecdsa.SignHash(digest), fieldSize),
                 fieldSize,
                 ",");
-            HandshakeVerifier verifier = ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(ecdsa), null, ",");
+            HandshakeVerifier verifier = Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(ecdsa), null, ",");
 
             Assert.IsTrue(verifier(data, signature));
         }
@@ -61,7 +61,7 @@ public class VerifierTests
             byte[] signature = TestUtil.DueEcdsaSignature(
                 TestUtil.NormalizeEcdsaSignature(signer.SignHash(digest), fieldSize),
                 fieldSize);
-            HandshakeVerifier verifier = ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(other));
+            HandshakeVerifier verifier = Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(other));
 
             Assert.IsFalse(verifier(data, signature));
         }
@@ -73,7 +73,7 @@ public class VerifierTests
     {
         using (ECDsa ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256))
         {
-            HandshakeVerifier verifier = ServerVerifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(ecdsa));
+            HandshakeVerifier verifier = Verifier.Ecdsa(TestUtil.EcdsaPublicKeyPem(ecdsa));
 
             Assert.IsFalse(verifier(Encoding.UTF8.GetBytes("data"), Encoding.ASCII.GetBytes("not-a-signature")));
             Assert.IsFalse(verifier(Encoding.UTF8.GetBytes("data"), null));
@@ -88,7 +88,7 @@ public class VerifierTests
         {
             byte[] data = Encoding.UTF8.GetBytes("due-handshake-v1-rsa-data");
             byte[] signature = rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            HandshakeVerifier verifier = ServerVerifier.Rsa(TestUtil.RsaPublicKeyPem(rsa, true), null, false);
+            HandshakeVerifier verifier = Verifier.Rsa(TestUtil.RsaPublicKeyPem(rsa, true), null, false);
 
             Assert.IsTrue(verifier(data, signature));
             Assert.IsFalse(verifier(Encoding.UTF8.GetBytes("tampered"), signature));
@@ -119,7 +119,7 @@ public class VerifierTests
                 return;
             }
 
-            HandshakeVerifier verifier = ServerVerifier.Rsa(TestUtil.RsaPublicKeyPem(rsa, false));
+            HandshakeVerifier verifier = Verifier.Rsa(TestUtil.RsaPublicKeyPem(rsa, false));
 
             Assert.IsTrue(verifier(data, signature));
             Assert.IsFalse(verifier(Encoding.UTF8.GetBytes("tampered"), signature));
@@ -130,8 +130,8 @@ public class VerifierTests
     [Test]
     public void InvalidPem_Throws()
     {
-        Assert.Throws<FormatException>(() => ServerVerifier.Ecdsa("not-a-pem"));
-        Assert.Throws<FormatException>(() => ServerVerifier.Rsa("not-a-pem"));
+        Assert.Throws<FormatException>(() => Verifier.Ecdsa("not-a-pem"));
+        Assert.Throws<FormatException>(() => Verifier.Rsa("not-a-pem"));
     }
 
     // 创建 RSA 测试密钥
