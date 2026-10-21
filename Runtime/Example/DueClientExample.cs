@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using Due;
 using Due.Network;
+using Due.Security;
 using UnityEngine;
 
 // 使用示例（可删除）：演示如何创建客户端、注册回调并收发消息。
@@ -19,6 +20,13 @@ public class DueClientExample : MonoBehaviour
 
         // WebSocket 传输
         client = new Client(new Ws(packer), packer);
+
+        // 会话安全（可选）：服务端启用 security 时，需提供服务端公钥用于验签
+        // SecurityOptions security = new SecurityOptions
+        // {
+        //     Verifier = ServerVerifier.Ecdsa("keys/gate.pub.pem"),
+        // };
+        // client = new Client(new Ws(packer), packer, security);
 
         client.OnConnect(c =>
         {
