@@ -69,8 +69,7 @@ public class Demo : MonoBehaviour
         {
             Debug.Log("连接断开");
 
-            // 重新连接
-            c.Connect("ws://127.0.0.1:3553");
+            // 重连建议重新创建 Client（及 Tcp/Ws）实例，详见「9.6 断线重连」
         });
 
         // 监听接收消息
@@ -186,6 +185,163 @@ client.Connect("ws://127.0.0.1:3553");
 > * 服务端使用 RSA 签名时，改用 `ServerVerifier.Rsa("keys/gate.pub.pem")`（默认 PSS 填充，如需 PKCS#1 v1.5 传入 `pss: false`）。
 > * 如需自定义验签逻辑（例如使用 HMAC 测试签名），可直接传入 `HandshakeVerifier` 委托；如需扩展 AEAD 算法，可实现 `IAeadSuite` 并通过 `SecurityOptions.Suites` 注入。
 > * 签名算法默认 SHA-256，需与服务端 `etc.crypto.ecc.signer.hash` 配置一致；ECDSA 签名的分隔符默认为空格，与服务端 `etc.crypto.ecc.signer.delimiter` 配置一致。
+
+### 9.接入说明
+
+本章按“从零接入到联调通过”的顺序整理接入步骤、配置对照与常见问题。
+
+#### 9.1 环境要求
+
+* Unity 2020.2 及以上（项目使用 C# 8 语法），推荐 Unity 2021.3 LTS。
+* API Compatibility Level 建议设置为 `.NET Standard 2.1`（WebSocket 也要求该级别或 `.NET Framework 4.x`）。
+* 桌面、移动平台（Mono / IL2CPP）均可使用；WebGL 受运行时限制，`System.Net.WebSockets` 与部分加密 API 不可用，需自行实现 `INetwork` 并验证验签能力。
+* 会话安全不依赖平台自带的 `AesGcm`，使用内置的纯托管 AES-256-GCM；ECDSA / RSA 验签依赖 `System.Security.Cryptography.ECDsa` / `RSA`。
+
+#### 9.2 接入步骤
+
+1. 导入 SDK：将 `Runtime` 目录整体复制到 Unity 工程的 `Assets` 下，保留 `Due.asmdef`。
+2. 对齐协议参数：确认服务端 `etc.packet` 的 `byteOrder`、`routeBytes`、`seqBytes`，用相同参数构造 `Packer`。
+3. 对齐编解码器：客户端 `IEncoding` 需与服务端节点的 `etc.cluster.node.codec` 一致（默认 `json`）。
+4. 创建客户端：在 Unity 主线程（如 `Awake`、`Start`）中构造 `Client`，并注入 `Tcp` 或 `Ws`。
+5. 注册回调：在调用 `Connect` 之前注册 `OnConnect`、`OnReceive`、`OnDisconnect`、`OnHeartbeat`。
+6. 建立连接：调用 `Connect`，在 `OnConnect` 中开始业务收发。
+7. 启用安全（可选）：服务端开启 `WithSessionSecurity` 后，客户端注入 `SecurityOptions` 并配置服务端公钥。
+8. 释放连接：在 `OnDestroy` 或场景切换时调用 `Disconnect`。
+
+最小接入代码：
+
+```csharp
+using Due;
+using Due.Network;
+using Due.Security;
+using UnityEngine;
+
+public class NetworkManager : MonoBehaviour
+{
+    private Client client;
+
+    private void Awake()
+    {
+        // 与服务端 etc.packet 保持一致
+        Packer packer = new Packer(ByteOrder.BigEndian, 2, 2, new Json());
+
+        // 服务端未启用 security 时传 null 即可
+        SecurityOptions security = null;
+        // security = new SecurityOptions
+        // {
+        //     Verifier = ServerVerifier.Ecdsa("keys/gate.pub.pem"),
+        // };
+
+        client = new Client(new Tcp(packer), packer, security);
+
+        client.OnConnect(c => Debug.Log("连接就绪"));
+        client.OnReceive((c, message) => Debug.Log($"route={message.Route}, seq={message.Seq}"));
+        client.OnDisconnect(c => Debug.Log("连接断开"));
+
+        client.Connect("127.0.0.1:3553");
+    }
+
+    private void OnDestroy()
+    {
+        client?.Disconnect();
+    }
+}
+```
+
+#### 9.3 配置对照表
+
+协议参数必须与服务端完全一致，否则会出现连接成功但无法解析消息、或直接被网关断开的情况。
+
+| Unity 客户端 | due 服务端配置 | 说明 |
+| --- | --- | --- |
+| `Packer` 的 `byteOrder` | `[packet] byteOrder` | `big` / `little`，必须一致 |
+| `Packer` 的 `routeBytes` | `[packet] routeBytes` | 可选 1 / 2 / 4，必须一致 |
+| `Packer` 的 `seqBytes` | `[packet] seqBytes` | 客户端支持 1 / 2 / 4；服务端为 0（不编码序列号）时客户端暂不支持 |
+| 单条消息 payload 长度 | `[packet] bufferBytes` | 默认上限 5000 字节，超限会被服务端拒绝 |
+| `IEncoding` 实现 | `[cluster.node] codec` | 例如 `json`、`proto`，需与节点保持一致 |
+| `SecurityOptions.Verifier` | `[crypto.ecc.signer] publicKey` / `[crypto.rsa.signer] publicKey` | 客户端使用网关公钥验签 |
+| `SecurityOptions.Suites` | `gate.WithSessionSecurity(signer, suites...)` | 需与网关启用的套件有交集，客户端默认 AES-256-GCM |
+| `SecurityOptions.HandshakeTimeout` | `gate.WithSessionSecurityHandshakeTimeout(...)` | 默认 5000 毫秒 |
+| `ServerVerifier.Ecdsa` 的 `hash` | `[crypto.ecc.signer] hash` | 默认 `SHA256` |
+| `ServerVerifier.Ecdsa` 的 `delimiter` | `[crypto.ecc.signer] delimiter` | 默认空格 |
+| `ServerVerifier.Rsa` 的 `pss` | `[crypto.rsa.signer] padding` | `PSS` 对应 `pss: true`，`PKCS` 对应 `pss: false` |
+
+> 服务端开启会话安全后，节点侧不要再配置静态 `encryptor`，业务 payload 的加密由网关注入的会话密钥负责，避免二次加密。
+
+#### 9.4 帧结构
+
+```
++----------+------------+-----------+---------+-----------+
+| size(4B) | header(1B) | route(nB) | seq(mB) | payload   |
++----------+------------+-----------+---------+-----------+
+```
+
+* `size`：`header + route + seq + payload` 的总长度（不含自身 4 字节）。
+* `header`：bit7 为心跳帧标记，bit0 为握手帧标记。
+* 心跳帧：`size(4B) | 0x80 | [服务器时间(8B)]`，是否携带时间由服务端 `heartbeatTime` 决定。
+* 握手帧：`size(4B) | 0x01 | 握手数据`，不携带 route 与 seq。
+* 安全会话建立后，业务帧的 `payload` 为：`epoch(1B) | counter(8B) | ciphertext | tag(16B)`。
+
+#### 9.5 线程模型与生命周期
+
+* `Client` 在构造时捕获当前 `SynchronizationContext`，网络回调会被派发回该上下文；请在 Unity 主线程创建客户端。
+* `OnConnect`、`OnReceive`、`OnDisconnect`、`OnHeartbeat` 回调可直接操作 UI 与场景对象。
+* `Send` 可在主线程调用，内部已做发送串行化；但不要在握手完成前发送业务消息（安全模式下会返回 `false`）。
+* `Disconnect` 会停止心跳；重复调用是安全的。
+
+#### 9.6 断线重连
+
+* 心跳间隔可在构造 `Client` 时指定，默认 10 秒；服务端开启心跳检测时，客户端心跳间隔应小于服务端检测间隔。
+* 安全会话与连接一一对应，每次重新连接都会重新握手，无需手动清理密钥。
+* 重连建议重新创建 `Client`（及 `Tcp` / `Ws`）实例，避免复用已断开的传输对象：
+
+```csharp
+client.OnDisconnect(c =>
+{
+    // 延迟后使用新的 Client 实例重连
+    // StartCoroutine(ReconnectAfter(1f));
+});
+```
+
+#### 9.7 联调验证清单
+
+* [ ] 与服务端核对 `byteOrder`、`routeBytes`、`seqBytes`、`bufferBytes`、`codec`
+* [ ] `OnConnect` 正常触发（安全模式下为握手完成之后）
+* [ ] 小消息（几十字节）与大消息（接近 `bufferBytes`）均可正常收发
+* [ ] 心跳运行一段时间后连接保持稳定
+* [ ] 安全模式下抓包确认 payload 无业务明文
+* [ ] 断开连接后重连正常
+* [ ] 运行 `Tests` 下的 EditMode 单元测试
+
+#### 9.8 常见问题
+
+**连接成功但收不到消息**
+
+* 最常见原因是 `routeBytes` / `seqBytes` / `byteOrder` 与服务端 `etc.packet` 不一致。
+* 检查客户端编解码器与服务端节点 `codec` 是否一致（如 JSON 对 proto）。
+* 检查消息 `route` 是否已在节点注册。
+
+**连接建立后立即断开，或一直收不到回包**
+
+* 客户端启用了 `SecurityOptions` 但网关未启用 `WithSessionSecurity`（或反之）。
+* 客户端公钥与网关签名私钥不匹配，或 `hash` / `delimiter` / `padding` 配置不一致。
+* 握手超时时间小于实际网络往返时间，可适当调大 `HandshakeTimeout`。
+* 服务端启用了会话安全，但节点侧仍配置了静态 `encryptor`。
+
+**单条消息发送失败或服务端报消息过大**
+
+* payload 超过服务端 `etc.packet.bufferBytes`（默认 5000 字节），需要拆分消息或调大服务端配置。
+
+**JSON 解析异常**
+
+* `JsonUtility` 仅支持标记 `[System.Serializable]` 的类型，只序列化 public 字段，不支持字典、匿名对象与顶层数组。
+* JSON 的字段名与 C# 字段名必须一致。
+* 如需更灵活的 JSON 能力，可实现 `IEncoding` 并注入 Newtonsoft.Json 等实现。
+
+**WebSocket / WebGL**
+
+* WebSocket 需将 API Compatibility Level 设置为 `.NET Standard 2.1` 或 `.NET Framework 4.x`。
+* WebGL 不支持 `System.Net.WebSockets`，需基于浏览器原生 WebSocket 实现 `INetwork`；同时需验证 `ECDsa` 等加密 API 在该平台是否可用。
 
 ## License
 
